@@ -1,5 +1,6 @@
 fastapi
 uvicorn[standard]
+python-jose[cryptography]
 httpx
 sqlalchemy
 aiosqlite
@@ -8,3 +9,6 @@ asyncpg
 stripe
 alembic
 psycopg2-binary
+PyJWT
+redis[async]
+boto3

@@ -1,10 +1,7 @@
-# app/stripe_webhook.py
-
 from fastapi import APIRouter, Request, Header, HTTPException, Depends
 from starlette.responses import JSONResponse
 import stripe
 
-import os
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime
@@ -18,7 +15,6 @@ router = APIRouter()
 
 # Stripe setup
 stripe.api_key = settings.STRIPE_API_KEY
-endpoint_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
 
 @router.post("/webhook")
 async def webhook(
@@ -28,26 +24,35 @@ async def webhook(
 ):
     payload = await request.body()
 
+    # Debug logging for signature troubleshooting
+    print("==== Stripe Webhook Debug ====")
+    print("Stripe-Signature header:", stripe_signature)
+    print("Using webhook secret:", settings.STRIPE_WEBHOOK_SECRET)
+    print("Payload (first 200 bytes):", payload[:200])
+    print("==============================")
+
     # Verify webhook signature
     try:
         event = stripe.Webhook.construct_event(
             payload=payload,
             sig_header=stripe_signature,
-            secret=endpoint_secret
+            secret=settings.STRIPE_WEBHOOK_SECRET
         )
     except ValueError:
+        print("Invalid payload")
         raise HTTPException(status_code=400, detail="Invalid payload")
     except stripe.error.SignatureVerificationError:
+        print("Invalid signature")
         raise HTTPException(status_code=400, detail="Invalid signature")
 
     event_type = event["type"]
     event_id = event["id"]
     obj = event["data"]["object"]
 
-    print(f"🔔 Received Stripe event: {event_type}")
-    print(f"🔎 Object ID: {obj.get('id')}")
+    print(f"Received Stripe event: {event_type}")
+    print(f"Object ID: {obj.get('id')}")
 
-    # 🔸 Store webhook event for audit (if not already exists)
+    # Store webhook event for audit (if not already exists)
     exists = await db.execute(select(WebhookEvent).where(WebhookEvent.id == event_id))
     if not exists.scalar():
         db.add(WebhookEvent(
@@ -57,9 +62,9 @@ async def webhook(
         ))
         await db.commit()
 
-    # 🔸 Real-time charge syncing (from payment_intent)
+    # Real-time charge syncing (from payment_intent)
     if event_type == "payment_intent.succeeded":
-        print("✅ Payment succeeded")
+        print("Payment succeeded")
         charge_data = obj.get("charges", {}).get("data", [])
         if charge_data:
             charge = charge_data[0]
@@ -80,11 +85,11 @@ async def webhook(
                 await db.commit()
 
     elif event_type == "charge.refunded":
-        print("💸 Charge refunded")
+        print("Charge refunded")
     elif event_type == "invoice.payment_failed":
-        print("⚠️ Invoice payment failed")
+        print("Invoice payment failed")
 
-    # 🔔 Notify WebSocket clients
-    await manager.broadcast(f"📣 Stripe event received: {event_type}")
+    # Notify WebSocket clients
+    await manager.broadcast(f"Stripe event received: {event_type}")
 
     return JSONResponse(status_code=200, content={"message": "Webhook received"})

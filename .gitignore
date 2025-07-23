@@ -1,3 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
 .env
-.idea
+
+# IDE/editor
+.idea/
+.vscode/
 .DS_Store
+
+# Terraform
+.terraform/
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+
+# Sensitive/Local files
+terraform/secrets.tfvars
+pgdata/
+
+# OS-specific
+Thumbs.db

@@ -1,4 +1,3 @@
-# app/stripe_client.py
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -20,7 +19,7 @@ async def fetch_customer_email(customer_id: str, client: httpx.AsyncClient) -> s
         response.raise_for_status()
         return response.json().get("email")
     except httpx.HTTPStatusError as e:
-        print(f"⚠️ Failed to fetch customer {customer_id}: {e}")
+        print(f"Failed to fetch customer {customer_id}: {e}")
         return None
 
 
